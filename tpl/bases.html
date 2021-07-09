@@ -1,0 +1,242 @@
+<style>
+  .error{
+    color:red;
+  }
+</style>
+<h1>Bases</h1>
+
+<table id="bases-table" class="table">
+   <thead>
+     <tr>
+       <th scope="col">ID</th>
+       <th scope="col">Name</th>
+       <th scope="col">Location</th>
+       <th scope="col">Phone Number</th>
+     </tr>
+   </thead>
+   <tbody id="table_content">
+   </tbody>
+
+</table>
+
+
+<div class="modal fade" id="base-register-modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <form id="base-register-form">
+            <div class="modal-header">
+            <h4 class="modal-title" id="exampleModalLabel">Enter new base data</h4>
+            <button type="button" style="display:inline-block;" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            </div>
+            <div class="modal-body">
+                <div>
+                  <label for="name">Name:</label>
+                  <input type="text" id="name" name="name"  class="form-control" placeholder="Enter base name" required="true"></input>
+                </div>
+                <div>
+                  <label for="location">Location:</label>
+                  <input type="text" id="location" name="location" class="form-control" placeholder="Enter base location" required="true"></input>
+                </div>
+                <div>
+                  <label for="phone_number">Phone number:</label>
+                  <input type="number" id="phone_number" name="phone_number" class="form-control" placeholder="Enter your phone number" required="true"></input>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="submit" id="register_button" class="btn btn-primary">Register</button>
+            </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="base-edit-modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <form id="base-edit-form">
+              <div class="modal-header">
+              <h4 class="modal-title" id="exampleModalLabel">Enter base data</h4>
+              <button type="button" style="display:inline-block;" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+              </button>
+              </div>
+              <div class="modal-body">
+                <div>
+                  <input type="hidden"  name="id"  class="form-control"></input>
+                </div>
+                  <div>
+                    <label for="name">Name:</label>
+                    <input type="text"  name="name"  class="form-control" placeholder="Enter base name" required="true"></input>
+                  </div>
+                  <div>
+                    <label for="location">Location:</label>
+                    <input type="text" name="location" class="form-control" placeholder="Enter base location" required="true"></input>
+                  </div>
+                  <div>
+                    <label for="phone_number">Phone number:</label>
+                    <input type="number" name="phone_number" class="form-control" placeholder="Enter your phone number" required="true"></input>
+                  </div>
+              </div>
+              <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                  <button type="submit" id="update_button" class="btn btn-primary">Update</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+<script>
+get_bases();
+
+    function get_bases(){
+      $.ajax({
+     url: "rest/bases",
+     type: "GET",
+     beforeSend: function(xhr){
+       xhr.setRequestHeader('authorization', 'Bearer ' +  localStorage.getItem("user_token"));
+     },
+     success: function( data ) {
+        var dataSet = [];
+        for(var i = 0; i < data.length; i++){
+          dataSet.push([
+            data[i].id,
+            data[i].name,
+            data[i].location,
+            data[i].phone_number
+          ]);
+        }
+
+        $("#bases-table").DataTable({
+          data: dataSet,
+          columns: [
+            {title: "ID"},
+            {title: "Name"},
+            {title: "Location"},
+            {title: "Phone Number"}
+          ],
+          dom: 'Bfrtip',
+          buttons: [
+          {
+           text: 'Delete base',
+           action: function ( e, dt, button, config ) {
+             if($('#bases-table').DataTable().row('.selected').data()){
+                var id = $('#bases-table').DataTable().row('.selected').data()[0];
+                delete_base(id);
+              }else{
+                toastr.error("Please select a base");
+              }
+             }
+           },
+           {
+            text: 'Add new base',
+            action: function ( e, dt, button, config ) {
+              open_base_register_modal();
+            }
+          },
+          {
+           text: 'Update base',
+           action: function ( e, dt, button, config ) {
+             if($('#bases-table').DataTable().row('.selected').data()){
+                var id = $('#bases-table').DataTable().row('.selected').data()[0];
+                  open_base_edit_modal(id);
+              }else{
+                toastr.error("Please select a base");
+              }
+           }
+         }
+
+
+          ],
+          "pageLength": 5,
+          "lengthMenu": [2, 5, 10, 25, 50, "All"]
+        });
+      }
+     })
+   }
+
+   function delete_base(id){
+    $.ajax({
+        url: 'rest/base/'+id,
+        method: 'DELETE',
+        success: function(result) {
+            toastr.success('Deleted');
+            $('#bases-table').DataTable().clear().destroy();
+            get_bases();
+        },
+        error: function(){
+          toastr.success('Not deleted');
+        }
+    });
+}
+
+    $('#base-register-form').validate({
+      submitHandler: function(form) {
+        var base = {
+          name: $('#base-register-form input[name="name"]').val(),
+          location: $('#base-register-form input[name="location"]').val(),
+          phone_number: $('#base-register-form input[name="phone_number"]').val()
+        }
+        $.post( "rest/base", base ).done(function(data) {
+          toastr.success('You have registered a new base');
+          $('#base-register-modal').modal('toggle');
+          $('#bases-table').DataTable().clear().destroy();
+          get_bases();
+        }).fail(function(error) {
+          toastr.error(error.responseText)
+        });
+      }
+    });
+
+    $('#base-edit-form').validate({
+      submitHandler: function(form) {
+        var base = {
+          id: $('#base-edit-form input[name="id"]').val(),
+          name: $('#base-edit-form input[name="name"]').val(),
+          location: $('#base-edit-form input[name="location"]').val(),
+          phone_number: $('#base-edit-form input[name="phone_number"]').val()
+        }
+        $.post( "rest/bases", base).done(function(data) {
+          toastr.success('You have updated a base');
+          $('#base-edit-modal').modal('toggle');
+          $('#bases-table').DataTable().clear().destroy();
+          get_bases();
+        }).fail(function(error) {
+          toastr.error(error.responseText)
+        });
+      }
+    });
+
+    function open_base_edit_modal(id){
+      $.ajax({
+          url: 'rest/base/'+id,
+          method: 'GET',
+          beforeSend: function(xhr){
+            xhr.setRequestHeader('authorization', 'Bearer ' +  localStorage.getItem("user_token"));
+          },
+          success: function(data){
+            $('#base-edit-modal').modal('toggle');
+            $("#base-edit-form input[name=name]").val(data[0].name);
+            $("#base-edit-form input[name=id]").val(data[0].id);
+            $("#base-edit-form input[name=location]").val(data[0].location);
+            $("#base-edit-form input[name=phone_number]").val(data[0].phone_number);
+      },
+      error: function(){
+        toastr.error(error.responseText);
+      }
+    });
+    }
+
+    function open_base_register_modal(){
+      $('#base-register-modal').modal('toggle');
+    }
+
+    $('#table_content').on( 'click', 'tr', function () {
+       $('.selected').toggleClass('selected');
+        $(this).toggleClass('selected');
+    } );
+
+</script>

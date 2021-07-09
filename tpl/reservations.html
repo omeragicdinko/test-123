@@ -1,0 +1,190 @@
+<html>
+<style>
+  .error{
+    color:red;
+  }
+</style>
+
+  <h2>RESERVATIONS</h2>
+
+  <table id="reservations-table" class="table">
+     <thead>
+       <tr>
+         <th scope="col">ID</th>
+         <th scope="col">Customer Name</th>
+         <th scope="col">Customer Phone Number</th>
+         <th scope="col">Reservation Code</th>
+         <th scope="col">Base ID</th>
+         <th scope="col">Car Model</th>
+         <th scope="col">Car Registration Number</th>
+         <th scope="col">Daily cost</th>
+         <th scope="col">Deposit</th>
+         <th scope="col">Status</th>
+       </tr>
+     </thead>
+     <tbody id="table_content">
+     </tbody>
+  </table>
+
+  <div class="modal fade" id="status-modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <form id="status-form">
+              <div class="modal-header">
+              <h4 class="modal-title" id="exampleModalLabel">Change status</h4>
+              <button type="button" style="display:inline-block;" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+              </button>
+              </div>
+              <div class="modal-body">
+                <div>
+                    <label>Status</label>
+                    <select name="status" class="form-control" required="true" >
+                      <option value="" disabled selected>Choose your option</option>
+                      <option value="PENDING">PENDING</option>
+                      <option value="RENTED OUT">RENTED OUT</option>
+                      <option value="FINISHED">FINISHED</option>
+                    </select>
+                </div>
+                <div>
+                  <input type="hidden" name="id" class="form-control"></input>
+                </div>
+              <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                  <button type="submit" id="register_button" class="btn btn-primary">Submit</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+<script>
+
+get_reservations();
+
+    function get_reservations(){
+      $.ajax({
+     url: "rest/reservations",
+     type: "GET",
+     beforeSend: function(xhr){
+       xhr.setRequestHeader('authorization', 'Bearer ' +  localStorage.getItem("user_token"));
+     },
+     success: function(data) {
+        var dataSet = [];
+        for(var i = 0; i < data.length; i++){
+          dataSet.push([
+            data[i].id,
+            data[i].customer_name,
+            data[i].customer_phone_number,
+            data[i].reservation_code,
+            data[i].base_id,
+            data[i].car_model,
+            data[i].car_registration_number,
+            data[i].daily_cost,
+            data[i].deposit,
+            data[i].status
+          ]);
+        }
+
+        $("#reservations-table").DataTable({
+          data: dataSet,
+          columns: [
+            {title: "ID", visible:false},
+            {title: "Customer Name"},
+            {title: "Customer Phone Number"},
+            {title: "Reservation Code"},
+            {title: "Base ID"},
+            {title: "Car Model"},
+            {title: "Car Registration Number"},
+            {title: "Daily cost"},
+            {title: "Deposit"},
+            {title: "Status"}
+          ],
+          dom: 'Bfrtip',
+          buttons: [
+          {
+           text: 'Delete reservation',
+           action: function ( e, dt, button, config ) {
+             if($('#reservations-table').DataTable().row('.selected').data()){
+                var id = $('#reservations-table').DataTable().row('.selected').data()[0];
+                delete_reservation(id);
+              }else{
+                toastr.error("Please select a reservation");
+              }
+             }
+           },
+           {
+           text: 'Change status',
+           action: function ( e, dt, button, config ) {
+             if($('#reservations-table').DataTable().row('.selected').data()){
+                var id = $('#reservations-table').DataTable().row('.selected').data()[0];
+                open_modal_status(id);
+              }else{
+                toastr.error("Please select a reservation");
+              }
+             }
+           }
+          ],
+          "pageLength": 5,
+          "lengthMenu": [2, 5, 10, 25, 50, "All"]
+        });
+      }
+     })
+   }
+
+   function delete_reservation(id){
+    $.ajax({
+        url: 'rest/reservation/'+id,
+        method: 'DELETE',
+        success: function(result) {
+            toastr.success('Deleted');
+            $('#reservations-table').DataTable().clear().destroy();
+            get_reservations();
+        },
+        error: function(){
+          toastr.success('Not deleted');
+        }
+    });
+}
+
+$('#table_content').on( 'click', 'tr', function () {
+   $('.selected').toggleClass('selected');
+    $(this).toggleClass('selected');
+} );
+
+function open_modal_status(id){
+  $.ajax({
+      url: 'rest/reservation/'+id,
+      method: 'GET',
+      beforeSend: function(xhr){
+        xhr.setRequestHeader('authorization', 'Bearer ' +  localStorage.getItem("user_token"));
+      },
+      success: function(data){
+        $('#status-modal').modal('toggle');
+        $("#status-form select[name=status]").val(data[0].status);
+        $("#status-form input[name=id]").val(data[0].id);
+  },
+  error: function(){
+    toastr.success('Not deleted');
+  }
+});
+}
+
+$('#status-form').validate({
+  submitHandler: function(form) {
+    var reservation = {
+      id: $('#status-form input[name="id"]').val(),
+      status: $('#status-form select[name="status"]').val()
+    }
+    $.post( "rest/reservation/update", reservation ).done(function(data) {
+      toastr.success('You have updated the status');
+      $('#status-modal').modal('toggle');
+      $('#reservations-table').DataTable().clear().destroy();
+      get_reservations();
+    }).fail(function(error) {
+      toastr.error(error.responseText)
+    });
+  }
+});
+
+</script>
+</html>
